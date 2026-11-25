@@ -101,12 +101,64 @@ get('pair').onclick = async () => {
   const fallback = /where\s+recipient/i.test(query) ? 'Your filter selects incoming transfers. Which field identifies who sent each transfer?' : /sum\s*\(/i.test(query) ? 'Trace the filter with an extra B → D transfer of 30 units. Does the total rise by exactly 30?' : 'How could you combine multiple outgoing amounts into one total?';
   get('pairResult').textContent = await advice('Act as a SQL pair programmer. Hint without writing the finished query.',query + '\nLast run: ' + lastCheck,fallback);
 };
+function bar(label, count, total, tone) {
+  const row = document.createElement('div');
+  row.className = 'chart-row';
+  const caption = document.createElement('span');
+  caption.textContent = label;
+  const track = document.createElement('span');
+  track.className = 'chart-track';
+  track.setAttribute('aria-hidden', 'true');
+  const fill = document.createElement('span');
+  fill.className = 'chart-fill ' + tone;
+  fill.style.width = (total ? 100 * count / total : 0) + '%';
+  track.append(fill);
+  const value = document.createElement('span');
+  value.textContent = count + ' / ' + total;
+  row.append(caption, track, value);
+  return row;
+}
+function renderCohort() {
+  const records = Object.entries(samples);
+  for (const [field, title, pass] of [['research','Source citation','Verified'], ['sql','SQL checks','Passed']]) {
+    const figure = document.createElement('figure');
+    const caption = document.createElement('figcaption');
+    caption.textContent = title;
+    figure.append(caption);
+    for (const [status, tone] of [[pass,'positive'], ['Needs revision','revision'], ['Unattempted','pending']]) {
+      const learners = records.filter(([, data]) => data[field] === status);
+      figure.append(bar(status, learners.length, records.length, tone));
+      if (tone === 'revision') {
+        for (const [name] of learners) {
+          const button = document.createElement('button');
+          button.className = 'drill';
+          button.textContent = 'Review ' + name.split(' ')[0];
+          button.onclick = () => {
+            get('learner').value = name;
+            dashboard();
+            get('student').focus();
+          };
+          figure.append(button);
+        }
+      }
+    }
+    get('outcomes').append(figure);
+  }
+}
+renderCohort();
 function dashboard() {
   const name = get('learner').value;
   const data = samples[name] || session;
   get('student').textContent = name;
+  const total = data.decisions + data.retries;
+  get('attemptChart').replaceChildren();
+  if (total) {
+    get('attemptChart').append(bar('Correct', data.decisions, total, 'positive'), bar('Incorrect', data.retries, total, 'revision'));
+  } else {
+    get('attemptChart').textContent = 'No case decisions recorded yet.';
+  }
   get('signals').replaceChildren();
-  for (const [label,value] of [['Correct case decisions (all attempts)',data.decisions],['Incorrect case choices',data.retries],['Source citation',data.research],['SQL checks',data.sql]]) {
+  for (const [label,value] of [['Source citation',data.research],['SQL checks',data.sql]]) {
     const term = document.createElement('dt'), detail = document.createElement('dd');
     term.textContent = label; detail.textContent = value; get('signals').append(term,detail);
   }
