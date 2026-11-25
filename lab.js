@@ -19,6 +19,7 @@ function render() {
       button.textContent = label;
       controls.append(button);
       button.onclick = () => {
+        window.dispatchEvent(new CustomEvent('case-choice', {detail: index === task.correct}));
         get('feedback').textContent = task.hints[index];
         if (index !== task.correct) { misses++; return; }
         if (!misses) firstPass++;
